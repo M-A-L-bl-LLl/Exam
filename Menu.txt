@@ -1,0 +1,67 @@
+using KukushkinFactory.ModelEF;
+using MaterialSkin;
+using MaterialSkin.Controls;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace KukushkinFactory
+{
+    public partial class Form5 : MaterialForm
+    {
+        public Form5()
+        {
+            InitializeComponent();
+            var materialSkinManager = MaterialSkinManager.Instance;
+            materialSkinManager.AddFormToManage(this);
+            materialSkinManager.Theme = MaterialSkinManager.Themes.LIGHT;
+            materialSkinManager.ColorScheme = new ColorScheme(Primary.DeepPurple500, Primary.DeepPurple500, Primary.DeepPurple400, Accent.DeepOrange400, TextShade.WHITE);
+
+        }
+
+        private void Form5_Load(object sender, EventArgs e)
+        {
+            materialComboBox1.DropDownStyle = ComboBoxStyle.DropDownList;
+
+
+            storageBindingSource.DataSource = Program.db.Storage.ToList();
+        }
+
+        private void materialButton1_Click(object sender, EventArgs e)
+        {
+            Form6.storageLabel = materialComboBox1.Text;
+            Form6.storageId = materialComboBox1.SelectedIndex + 1;
+            //Парсим данные
+            Storage reportRow = (Storage)storageBindingSource.Current;
+            Form6.storageCity = reportRow.City;
+            Form6.storageAdress = reportRow.Adress;
+
+
+
+
+            Form6 form6 = new Form6();
+            form6.Show();
+            this.Hide();
+        }
+
+        private void materialButton2_Click(object sender, EventArgs e)
+        {
+            Form7 form7 = new Form7();
+            form7.Show();
+            this.Hide();
+        }
+
+        private void materialButton4_Click(object sender, EventArgs e)
+        {
+            Form1 form1 = new Form1();
+            form1.Show();
+            this.Hide();
+        }
+    }
+}

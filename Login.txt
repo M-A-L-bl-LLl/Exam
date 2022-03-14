@@ -1,0 +1,77 @@
+using MaterialSkin;
+using MaterialSkin.Controls;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace KukushkinFactory
+{
+    public partial class Form2 : MaterialForm
+    {
+        public Form2()
+        {
+            InitializeComponent();
+            var materialSkinManager = MaterialSkinManager.Instance;
+            materialSkinManager.AddFormToManage(this);
+            materialSkinManager.Theme = MaterialSkinManager.Themes.LIGHT;
+            materialSkinManager.ColorScheme = new ColorScheme(Primary.DeepPurple500, Primary.DeepPurple500, Primary.DeepPurple400, Accent.DeepOrange400, TextShade.WHITE);
+        }
+
+        private void Form2_Load(object sender, EventArgs e)
+        {
+
+        }
+
+        private void materialSwitch1_CheckedChanged(object sender, EventArgs e)
+        {
+            if (materialSwitch1.Checked)
+            {
+                materialTextBox2.Password = false;
+            }
+            else
+            {
+                materialTextBox2.Password = true;
+            }
+        }
+
+        private void materialButton2_Click(object sender, EventArgs e)
+        {
+            Form1 form1 = new Form1();
+            form1.Show();
+            this.Hide();
+        }
+
+        private void materialButton1_Click(object sender, EventArgs e)
+        {
+            // Проверка данных из TextBox на совпадение с данными из БД
+            if (Program.db.User.Any(x => x.Login == materialTextBox1.Text && x.Pass == materialTextBox2.Text && x.RoleID == 2))
+            {
+                Form5 form5 = new Form5();
+                form5.Show();
+                this.Hide();
+
+
+                return;
+            }
+            else if (Program.db.User.Any(x => x.Login == materialTextBox1.Text && x.Pass == materialTextBox2.Text && x.RoleID == 1))
+            {
+                Form4 form4 = new Form4();
+                form4.Show();
+                this.Hide();
+
+                return;
+            }
+            else
+            {
+                MaterialMessageBox.Show("Не верный логин или пароль!");
+                return;
+            }
+        }
+    }
+}

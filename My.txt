@@ -1,0 +1,326 @@
+using MaterialSkin;
+using MaterialSkin.Controls;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using KukushkinFactory.ModelEF;
+
+namespace KukushkinFactory
+{
+    public partial class Form6 : MaterialForm
+    {
+        public static int storageId;
+        public static string storageLabel, storageCity, storageAdress;
+
+
+        //Фильтрация
+        private void materialComboBox2_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            {
+                if (materialComboBox2.Text == "Все типы")
+                {
+                    productBindingSource.DataSource = Program.db.Product.Where(x => x.StorageID == storageId).ToList();
+                }
+                else
+                    productBindingSource.DataSource = Program.db.Product.Where(a => a.ProductType.Lable == materialComboBox2.Text && a.StorageID == storageId).ToList();
+            }
+        }
+
+        //Поиск
+        private void materialTextBox1_TextChanged(object sender, EventArgs e)
+        {
+            if (materialTextBox1.Text != "")
+            {
+                productBindingSource.DataSource = Program.db.Product.Where(a => a.Label.ToUpper().Contains(materialTextBox1.Text) && a.StorageID == storageId).ToList();
+            }
+            else
+                productBindingSource.DataSource = Program.db.Product.Where(a => a.StorageID == storageId).ToList();
+        }
+        //Назад в меню
+        private void materialButton4_Click(object sender, EventArgs e)
+        {
+            Form5 form5 = new Form5();
+            form5.Show();
+            this.Hide();
+        }
+        //Кнопка добавить
+        private void materialButton1_Click(object sender, EventArgs e)
+        {
+            materialComboBox1.Visible = true;
+            materialTextBox2.Visible = true;
+            materialTextBox3.Visible = true;
+            materialTextBox4.Visible = true;
+            materialTextBox5.Visible = true;
+            materialTextBox6.Visible = true;
+            backBtn.Visible = true;
+            confBtn.Visible = true;
+
+            //
+
+            materialButton1.Visible = false;
+            materialButton2.Visible = false;
+            materialButton3.Visible = false;
+        }
+        //Сохранить (Добавить)
+        private void confBtn_Click(object sender, EventArgs e)
+        {
+            //Парсим данные
+            Product report = new Product
+            {
+                ProductTypeID = materialComboBox1.SelectedIndex + 1,
+                Label = materialTextBox2.Text,
+                Count = materialTextBox4.Text,
+                CountInPackage = materialTextBox3.Text,
+                Price = materialTextBox5.Text,
+                Notes = materialTextBox6.Text,
+                StorageID = storageId
+
+            };
+
+            //Проверяем поля на пустоту
+            if (materialTextBox2.Text != string.Empty && materialTextBox3.Text != string.Empty && materialTextBox4.Text != string.Empty && materialTextBox5.Text != string.Empty)
+            {
+                try
+                {
+                    materialComboBox1.Visible = false;
+                    materialTextBox2.Visible = false;
+                    materialTextBox3.Visible = false;
+                    materialTextBox4.Visible = false;
+                    materialTextBox5.Visible = false;
+                    materialTextBox6.Visible = false;
+                    backBtn.Visible = false;
+                    changeBtn.Visible = false;
+                    confBtn.Visible = false;
+
+                    //
+
+                    materialButton1.Visible = true;
+                    materialButton2.Visible = true;
+                    materialButton3.Visible = true;
+
+                    //Добавляем строку в БД и сохраняем изменения
+                    Program.db.Product.Add(report);
+                    Program.db.SaveChanges();
+
+                    //Обновляем DataGridView
+                    productBindingSource.DataSource = Program.db.Product.Where(x => x.StorageID == storageId).ToList();
+                    dataGridView1.Refresh();
+
+
+                    //Очищаем поля с данными
+                    materialTextBox2.Text = "";
+                    materialTextBox3.Text = "";
+                    materialTextBox4.Text = "";
+                    materialTextBox5.Text = "";
+                    materialTextBox6.Text = "";
+
+
+
+                }
+                catch (Exception ex)
+                {
+                    MaterialMessageBox.Show(ex.Message);
+                }
+            }
+            else
+            {
+                MaterialMessageBox.Show("Заполните все данные!");
+            }
+        
+    }
+        //Кнопка удалить
+        private void materialButton3_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                DialogResult dr = MessageBox.Show("Вы точно хотите удалить данные?", "Удаление", MessageBoxButtons.YesNo);
+                if (dr == DialogResult.Yes)
+                {
+                    //Удаляем строку из БД и сохраняем изменения
+                    Product reportRow = (Product)productBindingSource.Current;
+                    Program.db.Product.Remove(reportRow);
+                    Program.db.SaveChanges();
+
+                    //Обновляем DataGridView
+                    dataGridView1.Refresh();
+                    productBindingSource.DataSource = Program.db.Product.Where(x => x.StorageID == storageId).ToList();
+                }
+            }
+            catch (Exception ex)
+            {
+                MaterialMessageBox.Show(ex.Message);
+            }
+        }
+        //Кнопка изменить
+        private void materialButton2_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                Product reportRow = (Product)productBindingSource.Current;
+                materialComboBox1.SelectedIndex = reportRow.ProductTypeID;
+                materialTextBox2.Text = reportRow.Label;
+                materialTextBox4.Text = reportRow.Count;
+                materialTextBox3.Text = reportRow.CountInPackage;
+                materialTextBox5.Text = reportRow.Price;
+                materialTextBox6.Text = reportRow.Notes;
+                //
+                materialComboBox1.Visible = true;
+                materialTextBox2.Visible = true;
+                materialTextBox3.Visible = true;
+                materialTextBox4.Visible = true;
+                materialTextBox5.Visible = true;
+                materialTextBox6.Visible = true;
+                backBtn.Visible = true;
+                changeBtn.Visible = true;
+
+                //
+
+                materialButton1.Visible = false;
+                materialButton2.Visible = false;
+                materialButton3.Visible = false;
+            }
+            catch(Exception ex)
+            {
+                MaterialMessageBox.Show(ex.Message);
+            }
+            
+
+
+        }
+        //Кнопка отменить
+        private void backBtn_Click(object sender, EventArgs e)
+        {
+            materialComboBox1.Visible = false;
+            materialTextBox2.Visible = false;
+            materialTextBox3.Visible = false;
+            materialTextBox4.Visible = false;
+            materialTextBox5.Visible = false;
+            materialTextBox6.Visible = false;
+            backBtn.Visible  = false;
+            changeBtn.Visible = false;
+            confBtn.Visible = false;
+
+            //
+
+            materialButton1.Visible = true;
+            materialButton2.Visible = true;
+            materialButton3.Visible = true;
+
+            //
+            materialTextBox2.Text = "";
+            materialTextBox3.Text = "";
+            materialTextBox4.Text = "";
+            materialTextBox5.Text = "";
+            materialTextBox6.Text = "";
+        }
+
+        //Кнопка применить (Изменить)
+        private void changeBtn_Click(object sender, EventArgs e)
+        {
+
+            //Проверяем поля на пустоту
+            if ( materialTextBox2.Text != string.Empty && materialTextBox3.Text != string.Empty && materialTextBox4.Text != string.Empty && materialTextBox5.Text != string.Empty)
+            {
+                try
+                {
+                    materialComboBox1.Visible = false;
+                    materialTextBox2.Visible = false;
+                    materialTextBox3.Visible = false;
+                    materialTextBox4.Visible = false;
+                    materialTextBox5.Visible = false;
+                    materialTextBox6.Visible = false;
+                    backBtn.Visible = false;
+                    changeBtn.Visible = false;
+                    confBtn.Visible = false;
+
+                    //
+
+                    materialButton1.Visible = true;
+                    materialButton2.Visible = true;
+                    materialButton3.Visible = true;
+
+                    //Парсим данные
+                    Product reportRow = (Product)productBindingSource.Current;
+                    reportRow.Label = materialTextBox2.Text;
+                    reportRow.Count = materialTextBox4.Text;
+                    reportRow.CountInPackage = materialTextBox3.Text;
+                    reportRow.Price = materialTextBox5.Text;
+                    reportRow.Notes = materialTextBox6.Text;                    
+                    reportRow.StorageID = storageId;
+                    //Сохраняем изменения                    
+                    Program.db.SaveChanges();
+
+                    //Обновляем DataGridView
+                    productBindingSource.DataSource = Program.db.Product.Where(x => x.StorageID == storageId).ToList();
+                    dataGridView1.Refresh();
+
+
+                    //Очищаем поля с данными
+                    materialTextBox2.Text = "";
+                    materialTextBox3.Text = "";
+                    materialTextBox4.Text = "";
+                    materialTextBox5.Text = "";
+                    materialTextBox6.Text = "";
+                }
+                catch (Exception ex)
+                {
+                    MaterialMessageBox.Show(ex.Message);
+                }
+            }
+            else
+            {
+                MaterialMessageBox.Show("Заполните все данные!");
+            }
+        }
+
+        public Form6()
+        {
+            InitializeComponent();
+            var materialSkinManager = MaterialSkinManager.Instance;
+            materialSkinManager.AddFormToManage(this);
+            materialSkinManager.Theme = MaterialSkinManager.Themes.LIGHT;
+            materialSkinManager.ColorScheme = new ColorScheme(Primary.DeepPurple500, Primary.DeepPurple500, Primary.DeepPurple400, Accent.DeepOrange400, TextShade.WHITE);
+        }
+
+        private void Form6_Load(object sender, EventArgs e)
+        {
+            backBtn.Visible = false;
+            confBtn.Visible = false;
+            changeBtn.Visible = false;
+            // вначале передаем данные в промежуточные объекты,
+            // связанные с выпадающими списками
+            productTypeBindingSource.DataSource = Program.db.ProductType.ToList();
+            storageBindingSource.DataSource = Program.db.Storage.ToList();
+
+
+            // последним передаем данные основной таблицы
+            // в промежуточные объекты
+            productBindingSource.DataSource = Program.db.Product.Where(x => x.StorageID == storageId).ToList();
+
+            // Заполняем данными фильтрацию
+            List<string> listFilter = new List<string>();
+            listFilter = Program.db.ProductType.Select(a => a.Lable).ToList();
+            listFilter.Insert(0, "Все типы");
+            materialComboBox2.DataSource = listFilter;
+
+            //Парсим данные
+            materialLabel1.Text = "Склад: " + storageLabel;
+            materialLabel2.Text = "Город: " + storageCity;
+            materialLabel3.Text = "Адрес: " + storageAdress;
+
+            //Настройка DataGridView
+            dataGridView1.AllowUserToAddRows = false;
+            dataGridView1.RowHeadersVisible = false;
+            dataGridView1.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dataGridView1.DefaultCellStyle.SelectionBackColor = Color.Green;
+
+
+        }
+    }
+}

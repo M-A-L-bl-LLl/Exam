@@ -1,0 +1,446 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using LopushokApp.ModelEF;
+
+namespace LopushokApp
+{
+    public partial class Form1 : Form
+    {
+        /////////////////////////////////////////////////
+        // 4-LopushokApp (UserControls + страницы)
+        // (самая полная версия)
+        /////////////////////////////////////////////////
+        // Константы программы
+        // количество товаров на странице (форме) //!!!!!
+        static int nProdInPage = 20;
+        static int nButtons = 5;   // количество кнопок        
+
+        /////////////////////////////////////////////////
+        // коллекция всех товаров
+        List<Product> lstProducts = new List<Product>();
+
+        /////////////////////////////////////////////////
+        // коллекция ID выбранных товаров
+        static public List<int> lstSelectedProduct = new List<int>();
+
+        // коллекция пользов. элементов управления для показа
+        List<ProductUserCntrl> lstControls = new List<ProductUserCntrl>();
+
+        // массив для хранения кнопок перехода между страницами
+        Button[] btnsList = new Button[5];
+
+        public Form1()
+        {
+            InitializeComponent();
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            // устанавливаем тип сортировки
+            SortCombo.SelectedIndex = 0;
+            // загружаем список названий типов товаров
+            List<string> lstTypes = Program.db.ProductType.Select(a => a.Title).ToList();
+            lstTypes.Insert(0, "Все типы");
+            // передаем данные фильтру
+            FiltrCombo.DataSource = lstTypes;
+
+            // подготавливаем коллекцию Пользователских ЭУ
+            // размещаем ее в flowLayoutPanel1
+            for (int i = 0; i < nProdInPage; i++)
+            {
+                // добавляем новый ПЭУ к коллекции lstControls
+                lstControls.Add(new ProductUserCntrl());
+                // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                // подключаем обработчик события Notify
+                lstControls[i].Notify += Notify;
+                // добавляем новый ПЭУ к flowLayoutPanel 
+                flowLayoutPanel1.Controls.Add(lstControls[i]);
+            }
+
+            //  заносим кнопки в массив для удобства работы
+            btnsList[0] = button1;
+            btnsList[1] = button2;
+            btnsList[2] = button3;
+            btnsList[3] = button4;
+            btnsList[4] = button5;
+            // делаем активной первую кнопку
+            nPageFirst = nPageCurrent = 1;  // на всякий случай ???
+            // показываем все кнопки
+            ShowButtons(nPageFirst, nPageCurrent);
+
+            // подготавливаем данные для показа
+            PodgotovkaData();
+        }
+
+        /////////////////////////////////////////////////
+        // метод загрузки данных в ПЭУ  
+        private void ShowCurrentPage()
+        {
+            int nProdMax = lstProducts.Count(); // максимальное коли-во товара
+
+            // если данный товар выбран, то показываем кнопку "Изменить стоимость"
+            if (lstSelectedProduct.Count > 0)
+                CostChangeBtn.Visible = true;
+            else
+                CostChangeBtn.Visible = false;
+
+            // установка счетчика индекса товара на странице
+            int i = (nPageCurrent - 1) * nProdInPage;
+
+            // цикл по UserControls, которые будут показываться на форме 
+            // задаем свойства показываемых ПЭУ
+            foreach (ProductUserCntrl puc in lstControls)
+            {// каждому UserControls передаем данные (с помощью свойств)
+             // проверяем, есть ли данные для очередного UserControls
+                if (i < nProdMax)
+                {
+                    // сохраняем ID продукта
+                    puc.ID = lstProducts[i].ID;
+
+                    // проверяем - выбран этот ЭУ или нет?
+                    if (lstSelectedProduct.IndexOf(puc.ID) != -1)
+                    {// если данный ПЭУ ВЫБРАН, то фон меняем
+                        puc.BackColor = Color.LightGray;
+                    }
+                    else
+                    {// если не выбран, то начальный цвет
+                        puc.BackColor = Color.White; // puc.BackColor1;
+                    }
+                    // задаем фото товара
+                    if ((lstProducts[i].Image != "") && (lstProducts[i].Image != null))
+                        // если фото у товара есть, добавляем его
+                        puc.Picture = Image.FromFile(lstProducts[i].Image);
+                    else  // если фото нет, то добавляем картинку по умолчанию
+                        puc.Picture = Image.FromFile(@"products\picture.png");
+
+                    // задаем строку "тип товара | название товара"
+                    puc.TypeNameProduct = lstProducts[i].ProductType.Title + " | "
+                        + lstProducts[i].Title;
+
+                    // задаем артикул товара
+                    puc.Articul = lstProducts[i].ArticleNumber;
+
+                    // задаем список материалов и стоимость товара
+                    // они составляются из списка товаров              
+                    double cost = 0;
+                    string mtr = "";
+                    foreach (ProductMaterial prd_mtr in lstProducts[i].ProductMaterial)
+                    {
+                        if (prd_mtr.Count.HasValue)
+                        {
+                            if (mtr != "") mtr += ", ";
+                            mtr += prd_mtr.Material.Title;
+                            double n = prd_mtr.Count.Value;
+                            cost += n * Convert.ToDouble(prd_mtr.Material.Cost);
+                        }
+                    }
+                    puc.Material = mtr;
+                    puc.Cost = cost;
+
+                    // задаем цех производства товара, если задан 
+                    if (lstProducts[i].ProductionWorkshopNumber.HasValue)
+                    {
+                        puc.WorkshopNumber = lstProducts[i].ProductionWorkshopNumber.Value;
+                    }
+
+                    //  задаем миним. стоимость для агента
+                    puc.MinCost = Convert.ToDouble(lstProducts[i].MinCostForAgent);
+
+                    // делаем данный ЭУ видимым 
+                    puc.Visible = true;
+                }
+                else
+                {   // если данных для ПЭУ нет
+                    // делаем этот ПЭУ невидимым
+                    puc.Visible = false;
+                    // если данных уже нет, то кнопка враво не активная
+                    RightBtn.Enabled = false;
+                }
+                i++; // счетчик номера товара увеличиваем
+            }
+            
+            // если на последней странице показаны все товары
+            // то кнопку тоже отключаем 
+            if (i == nProdMax)
+            {
+                RightBtn.Enabled = false;
+            }
+            //////////////////////////////////////////////////////////
+            //  выводим надпись внизу формы 
+            // 
+            int beginProdNumber = (nPageCurrent - 1) * nProdInPage + 1;
+            int endProdNumber = nPageCurrent * nProdInPage;
+            if (endProdNumber > nProdMax) endProdNumber = nProdMax;
+            
+            //  вывод сообщения о номерах показываемых товаров            
+            RangeLbl.Text = $"Товары с {beginProdNumber} по {endProdNumber} (из всего {lstProducts.Count()})";
+        }
+
+        /////////////////////////////////////////////////
+        // параметры показа продукции 
+        string filtr = "Все типы";      // фильтр показа продукции;
+        string sort = "Без сортировки"; // сортировки продукции
+        string sortDirection = "возрастание"; // направление сортировки
+        string search = "";             // поиск по наименованию и описанию
+
+        /////////////////////////////////////////////////
+        //  Подготовка данных для показа 
+        public void PodgotovkaData()
+        {
+            // вначале выбираем все товары
+            lstProducts = Program.db.Product.ToList();
+
+            /////////////////////////////////////////////            
+            // фильтрация по типам товаров
+            if (filtr != "Все типы")
+            {
+                // отбираем только по заданному производителю
+                lstProducts = lstProducts.Where(p => (p.ProductType.Title == filtr)).ToList();
+            }
+            /////////////////////////////////////////////
+            // поиск по заданной строке
+            if (search != "")
+            {   // отбираем товары с заданной строкой в названии
+                search = search.ToUpper();
+                // поиск с учетом регистра
+                // ToUpper() для пустой строки не срабатывает
+                lstProducts = lstProducts
+                    .Where(p => (p.Title.ToUpper().Contains(search)) ||
+                        (p.Description != null && // есть описание ?
+                         p.Description.ToUpper().Contains(search)))
+                    .ToList();
+            }
+            /////////////////////////////////////////////
+            // сортировка по разным полям
+            if (sort != "Без сортировки")
+            {
+                if (sort == "Наименование")
+                {   // сортируем отобранные товары по наименованию
+                    if (sortDirection == "возрастание")
+                        lstProducts = lstProducts.OrderBy(p => p.Title).ToList();
+                    else
+                        lstProducts = lstProducts.
+                            OrderByDescending(p => p.Title).ToList();
+                }
+                if (sort == "Номер цеха")
+                {   // сортируем отобранные товары по наименованию
+                    if (sortDirection == "возрастание")
+                        lstProducts = lstProducts.OrderBy(p => p.ProductionWorkshopNumber).ToList();
+                    else
+                        lstProducts = lstProducts.
+                            OrderByDescending(p => p.ProductionWorkshopNumber).ToList();
+                }
+                if (sort == "Мин.стоимость")
+                {   // сортируем отобранные товары по наименованию
+                    if (sortDirection == "возрастание")
+                        lstProducts = lstProducts.OrderBy(p => p.MinCostForAgent).ToList();
+                    else
+                        lstProducts = lstProducts.
+                            OrderByDescending(p => p.MinCostForAgent).ToList();
+                }
+            }
+
+            // что показываем на кнопках 
+            nPageCurrent = 1;       // текущая - первая страница
+            nPageFirst = 1;         // первая кнопка  - первая страница
+            // расчитываем общее кол-во страниц (после фильтрации и поиска)
+            nPageAll = lstProducts.Count() / nProdInPage;
+            if (nPageAll * nProdInPage < lstProducts.Count())
+                nPageAll++;
+
+            /////////////////////////////////////////////
+            // загружаем и показываем первую страницу
+            ShowCurrentPage();
+        }
+
+        /////////////////////////////////////////////////////////////
+        //  обработчики событий - сортировка, поиск, фильтрация
+        //  после каждого события перерисовка
+        private void SortCombo_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            sort = SortCombo.Text;
+            PodgotovkaData();
+        }
+        private void DownCheck_CheckedChanged(object sender, EventArgs e)
+        {
+            if (DownCheck.Checked)
+                sortDirection = "убывание";
+            else
+                sortDirection = "возрастание";
+            PodgotovkaData();
+        }
+        private void SearchTxt_TextChanged(object sender, EventArgs e)
+        {
+            search = SearchTxt.Text;
+            PodgotovkaData();
+        }
+
+        private void FiltrCombo_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            filtr = FiltrCombo.Text;
+            PodgotovkaData();
+        }
+
+        /////////////////////////////////////////////////////////////
+        //  нажата кнопка "Добавить"
+        private void AddProductBtn_Click(object sender, EventArgs e)
+        {
+            AddEditProductForm form = new AddEditProductForm();
+            form.prd = null;
+            DialogResult dr = form.ShowDialog();
+            if (dr == DialogResult.OK)
+            {
+                PodgotovkaData();
+                // ShowCurrentPage(); //  вызывается в подготовке данных
+            }
+        }
+
+        /////////////////////////////////////////////////////////////
+        // обработчик события от пользовательского ЭУ
+        private void Notify(string message, int id)
+        {
+            if (message == "Правая кнопка")
+            {
+                if (lstSelectedProduct.Count > 0)
+                    CostChangeBtn.Visible = true;
+                else
+                    CostChangeBtn.Visible = false;
+                PodgotovkaData();
+            }
+            if (message == "Левая кнопка")
+            {
+                // при нажатии левой клавиши показываем окно "Изменение товара"
+                AddEditProductForm form = new AddEditProductForm();
+                // ищем товар, по которому выполнен щелчок левой кнопки мыши
+                Product prd = lstProducts.Find(p => p.ID == id);
+                form.prd = prd;
+                DialogResult dr = form.ShowDialog();
+                if (dr == DialogResult.OK)
+                {
+                    PodgotovkaData();
+                }
+            }
+        }
+
+        //  нажата кнопка "Изменить мин. стоимость ..."
+        private void CostChangeBtn_Click(object sender, EventArgs e)
+        {
+            //  открываем форму для изменения стоимости выбранных товаров
+            CostChangeForm form = new CostChangeForm();
+            DialogResult dr = form.ShowDialog();
+            if (dr == DialogResult.OK)
+            {
+                PodgotovkaData();
+            }
+        }
+
+        ///////////////////////////////////////////////////////////
+        // работа с кнопками перехода между группами страницами  !!        
+        /////////////////////////////////////////////////////////// 
+        int nPageAll = 0;        // всего страниц
+        int nPageFirst = 1;      // номер показываемой первой страницы
+        int nPageCurrent = 1;    // номер выделенной текущей страницы
+        int nGroupCurrent = 1;   // номер группы страниц
+        //
+        // кнопка перехода к предыдущей группе страниц
+        // 
+        private void LeftBtn_Click(object sender, EventArgs e)
+        {
+            // рассчитываем всего групп страниц
+            int nGroupAll = nPageAll / nButtons;
+            if (nGroupAll * nButtons < nPageAll) nGroupAll++;
+
+            if (nGroupCurrent > 1)
+            {
+                nGroupCurrent--;
+                nPageFirst = (nGroupCurrent - 1) * nButtons + 1;
+                nPageCurrent = nPageFirst;
+                // показываем номера в новой странице
+                ShowButtons(nPageFirst, nPageFirst);
+                // показываем новую страницу
+                ShowCurrentPage();
+
+                // состояние кнопок "влево" и "вправо" 
+                if (nGroupCurrent == 1)
+                    LeftBtn.Enabled = false;
+
+                if (nGroupCurrent == nGroupAll)
+                    RightBtn.Enabled = false;
+                else
+                    RightBtn.Enabled = true;
+            }                       
+        }
+        ////////////////////////////////////////////////////////       
+        // переход к следующей группе страниц товаров
+        private void RightBtn_Click(object sender, EventArgs e)
+        {
+            // рассчитываем всего групп страниц
+            int nGroupAll = nPageAll / nButtons;
+            if (nGroupAll * nButtons < nPageAll) nGroupAll++;
+
+            if (nGroupCurrent < nGroupAll)
+            {
+                nGroupCurrent++;
+                nPageFirst = (nGroupCurrent - 1) * nButtons + 1; 
+                nPageCurrent = nPageFirst;
+                // показываем номера в новой странице
+                ShowButtons(nPageFirst, nPageFirst);
+                // показываем новую страницу
+                ShowCurrentPage();
+                
+                // состояние кнопок "влево" и "вправо" 
+                if (nGroupCurrent == 1)
+                    LeftBtn.Enabled = false;
+                else 
+                    LeftBtn.Enabled = true;
+                if (nGroupCurrent == nGroupAll)
+                    RightBtn.Enabled = false;
+            }            
+        }
+        ////////////////////////////////////////////////////////
+        //  обработка нажатия одной из кнопок 
+        private void buttonN_Click(object sender, EventArgs e)
+        {
+            Button btn = (Button)sender;
+            // определяем номер показываемой страницы
+            nPageCurrent = Convert.ToInt32(btn.Text);
+            // показываем все кнопки с выделением активной
+            ShowButtons(nPageFirst, nPageCurrent);
+            // загружаем данные в другую страницу            
+            ShowCurrentPage();
+        }
+
+        //
+        // Рисуем все кнопки с выделением текущей
+        //
+        void ShowButtons(int nPageFirst, int nPageCurrent)
+        {
+            for (int i = 0; i < nButtons; i++)
+            {
+                int nPage = nPageFirst + i; // определяем номер страницы
+                btnsList[i].Text = nPage.ToString();
+                btnsList[i].BackColor = Color.White;
+                
+                // проверяем - есть ли такая страница?
+                if (nPage <= nPageAll)
+                {   // такая страница есть - кнопку показываем
+                    if (nPage == nPageCurrent) // если это выбранная страница
+                        btnsList[i].BackColor = Color.LightBlue;                    
+                    // показываем кнопку
+                    btnsList[i].Visible = true;
+                }
+                else
+                {  // такой страницы НЕТ - прячем кнопку (не показываем)
+                   btnsList[i].Visible = false;
+                }
+            }
+        }
+    }
+}

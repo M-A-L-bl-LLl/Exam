@@ -1,0 +1,92 @@
+using KukushkinFactory.ModelEF;
+using MaterialSkin;
+using MaterialSkin.Controls;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace KukushkinFactory
+{
+    public partial class Form3 : MaterialForm
+    {
+        public Form3()
+        {
+            InitializeComponent();
+            var materialSkinManager = MaterialSkinManager.Instance;
+            materialSkinManager.AddFormToManage(this);
+            materialSkinManager.Theme = MaterialSkinManager.Themes.LIGHT;
+            materialSkinManager.ColorScheme = new ColorScheme(Primary.DeepPurple500, Primary.DeepPurple500, Primary.DeepPurple400, Accent.DeepOrange400, TextShade.WHITE);
+        }
+
+        private void Form3_Load(object sender, EventArgs e)
+        {
+            materialComboBox1.DropDownStyle = ComboBoxStyle.DropDownList;
+
+
+            roleBindingSource.DataSource = Program.db.Role.ToList();
+        }
+
+        private void materialButton1_Click(object sender, EventArgs e)
+        {
+            User user = new User
+            {
+                Login = materialTextBox1.Text,
+                Pass = materialTextBox2.Text,
+                RoleID = materialComboBox1.SelectedIndex + 1 // +1 из-за того, что по стандарту индекс идет с 0
+            };
+
+            if (materialTextBox1.Text != string.Empty && materialTextBox2.Text != string.Empty)
+            {
+                if (Program.db.User.Any(x => x.Login == materialTextBox1.Text))
+                {
+                    MaterialMessageBox.Show("Такой пользователь уже есть!");
+
+
+                }
+                else if (materialTextBox2.TextLength <= 5)
+                {
+                    MaterialMessageBox.Show("Ненадежный пароль!");
+                }
+                else
+                {
+                    Program.db.User.Add(user);
+                    Program.db.SaveChanges();
+                    MaterialMessageBox.Show("Пользователь успешно загестрирован!");
+                    materialTextBox1.Text = "";
+                    materialTextBox2.Text = "";
+
+                }
+            }
+            else
+            {
+                MaterialMessageBox.Show("Введите данные!");
+            }
+        }
+
+        private void materialSwitch1_CheckedChanged(object sender, EventArgs e)
+        {
+            if (materialSwitch1.Checked)
+            {
+                materialTextBox2.Password = false;
+            }
+            else
+            {
+                materialTextBox2.Password = true;
+            }
+        }
+
+        private void materialButton2_Click(object sender, EventArgs e)
+        {
+            Form4 form4 = new Form4();
+            form4.Show();
+            this.Hide();
+           
+        }
+    }
+}
